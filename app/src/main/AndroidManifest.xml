@@ -3,7 +3,7 @@
     package="com.humanix.tsw.bluenix" >
 
     <uses-sdk
-        android:maxSdkVersion="23"
+        android:maxSdkVersion="29"
         android:minSdkVersion="2"
         android:targetSdkVersion="18" />
 

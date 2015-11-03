@@ -89,10 +89,17 @@ public class BluetoothLeService extends Service implements BluetoothAdapter.LeSc
             }
         }
 
-        //블루투스가 연결 성고하면 데이터 읽기
+        //블루투스가 연결 성공하면 데이터 읽기
         @Override
         public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status){
             if(status == BluetoothGatt.GATT_SUCCESS){
+                broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic);
+            }
+        }
+
+        @Override
+        public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+            if (status == BluetoothGatt.GATT_SUCCESS) {
                 broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic);
             }
         }
@@ -132,10 +139,22 @@ public class BluetoothLeService extends Service implements BluetoothAdapter.LeSc
                 final StringBuilder stringBuilder = new StringBuilder(data.length);
                 for(byte byteChar : data)
                     stringBuilder.append(String.format("%02X ", byteChar));
-                intent.putExtra(EXTRA_DATA, new String(data) + "\n" + stringBuilder.toString());
+                intent.putExtra(EXTRA_DATA, new String(data) /*+ "\n" + stringBuilder.toString()*/);
             }
         }
         sendBroadcast(intent);
+    }
+
+    // 데이터 보내기
+    public void writeRemoteCharacteristic(BluetoothGattCharacteristic characteristic) {
+        if(mBluetoothAdapter == null || mBluetoothGatt == null) {
+            Log.w(TAG, "BluetoothAdapter not initialized");
+            return;
+        }
+        if (SampleGattAttributes.BLUEINNO_PROFILE_SEND.equals(characteristic.getUuid().toString())) {
+            mBluetoothGatt.writeCharacteristic(characteristic);
+        }
+        mBluetoothGatt.writeCharacteristic(characteristic);
     }
 
     public class LocalBinder extends Binder {
@@ -293,6 +312,10 @@ public class BluetoothLeService extends Service implements BluetoothAdapter.LeSc
         if (mBluetoothGatt == null) return null;
 
         return mBluetoothGatt.getServices();
+    }
+
+    public BluetoothGatt getGattServise(){
+        return mBluetoothGatt;
     }
 
     @Override

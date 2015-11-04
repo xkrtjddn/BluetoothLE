@@ -84,6 +84,32 @@
             android:layout_height="wrap_content"
             android:id="@+id/led_switch"
             android:layout_gravity="right" />
+
+        <LinearLayout
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" >
+
+            <ImageView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/led_img_green"
+                android:layout_gravity="center_horizontal"
+                android:src="@drawable/motor_g_max" />
+
+            <Switch
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/led_switch_green"
+                android:layout_gravity="right" />
+
+            <Switch
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Blink"
+                android:id="@+id/led_switch_blink"
+                android:layout_gravity="right" />
+        </LinearLayout>
     </LinearLayout>
 
 </LinearLayout>

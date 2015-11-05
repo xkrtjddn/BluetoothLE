@@ -21,7 +21,6 @@ import android.widget.CompoundButton;
 import android.widget.ImageView;
 import android.widget.Switch;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -108,21 +107,21 @@ public class DeviceControlActivity extends Activity{
         @Override
         public void onReceive(Context context, Intent intent) {
             final String action = intent.getAction();
-            if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action)) {
+            if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action)) {      // 연결 상태
                 mConnected = true;
                 updateConnectionState(R.string.connected);
                 invalidateOptionsMenu();
 
-            } else if (BluetoothLeService.ACTION_GATT_DISCONNECTED.equals(action)) {
+            } else if (BluetoothLeService.ACTION_GATT_DISCONNECTED.equals(action)) {    // 연결 해제 상태
                 mConnected = false;
                 updateConnectionState(R.string.disconnected);
                 invalidateOptionsMenu();
 
-            } else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
+            } else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {     // 디바이스 검색 상태
                 // Show all the supported services and characteristics on the user interface.
                 //displayGattServices(mBluetoothLeService.getSupportedGattServices());
 
-            } else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
+            } else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {   // 데이터 송수신 가능 상태
                 try{
                     if(!blinkThread.isAlive()){
                         blinkThread.start();
@@ -141,6 +140,7 @@ public class DeviceControlActivity extends Activity{
         @Override
         public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
             buttonEvent = true;
+            // RED LED STATE SETUP
             if (mSwitch_red.isChecked()) {
                 LEDSTATE_RED = "1A";
                 setSTATE();
@@ -149,6 +149,7 @@ public class DeviceControlActivity extends Activity{
                 setSTATE();
             }
 
+            // GREEN LED STATE SETUP
             if(mSwitch_green.isChecked()) {
                 LEDSTATE_GREEN = "2A";
                 LEDSTATE_BLINK = "3B";  // 스위치를 켜면 Blink는 OFF
@@ -158,6 +159,7 @@ public class DeviceControlActivity extends Activity{
                 setSTATE();
             }
 
+            // BLINK STATE SETUP
             if(mSwitch_blink.isChecked()) {
                 LEDSTATE_BLINK = "3A";
                 LEDSTATE_GREEN = "2B";  // Blink를 켜면 스위치는 OFF
@@ -172,8 +174,9 @@ public class DeviceControlActivity extends Activity{
         }
     };
 
-
-
+    /**
+     *  블루투스로부터 데이터를 수신받는 스레드
+     */
     private TimerTask mTask = new TimerTask() {
         @Override
         public void run() {
@@ -206,90 +209,20 @@ public class DeviceControlActivity extends Activity{
                                 LEDSTATE_BLINK = STATE.substring(4, 6);
                                 //LEDSTATE = state.substring(0, i);
 
-                                if(!temp.equals(STATE)) {
-                                    Message msg = Message.obtain();
-                                    ledChangeHandler.sendMessage(msg);
+                                if(!temp.equals(STATE)) {               // 방금 수신받은 데이터와 이전의
+                                    Message msg = Message.obtain();     // 데이터가 다르면 핸들러 호출을 통한 UI 변경경
+                                   ledChangeHandler.sendMessage(msg);
                                 }
                                 temp = STATE;
                             }
                         }
                     } catch (Exception e) {
-                        showMessage(e.getMessage());
+                        e.printStackTrace();
                     }
                 }
             }
         }
     };
-
-    public void setSTATE() {
-        if(LEDSTATE_RED != null && LEDSTATE_GREEN != null && LEDSTATE_BLINK != null){
-            STATE = LEDSTATE_RED + LEDSTATE_GREEN + LEDSTATE_BLINK;
-        }
-        mDataFldUpdate();
-    }
-
-    private void sendEvent(String state) {
-        List<BluetoothGattService> gattServices = mBluetoothLeService.getSupportedGattServices();
-        if (gattServices == null) return;
-        BluetoothGattService blueService = null;
-        if (mBluetoothLeService != null) {
-            mGatt = mBluetoothLeService.getGattServise();
-            blueService = mGatt.getService(UUID_BLUEINNO_PROFILE_SERVICE_UUID);
-        }
-
-        for (BluetoothGattService gattService : gattServices) {
-            if ((gattService.getUuid().toString()).equals(SampleGattAttributes.UUID_BLUEINNO_PROFILE_SERVICE_UUID)) {
-                BluetoothGattCharacteristic sendCharacteristic = gattService.getCharacteristic(UUID_BLUEINNO_PROFILE_SEND_UUID);
-                BluetoothGattCharacteristic readCharacteristic = gattService.getCharacteristic(UUID_BLUEINNO_PROFILE_RECEIVE_UUID);
-
-                if (sendCharacteristic != null && readCharacteristic != null) {
-
-                    while (true) {
-                        sendCharacteristic.setValue(state);                                    //  데이터 보내는 부분
-                        mBluetoothLeService.writeRemoteCharacteristic(sendCharacteristic);
-
-                        // 보내는 데이터와 다시 받는 데이터가 같은지 확인하기 위해서 데이터 받는 부분
-                        String blueState = null;
-                        mGatt.readCharacteristic(readCharacteristic);
-                        if (blueService.getCharacteristic(UUID_BLUEINNO_PROFILE_RECEIVE_UUID).getValue() != null) {
-                            blueState = new String(blueService.getCharacteristic(UUID_BLUEINNO_PROFILE_RECEIVE_UUID).getValue());
-                        }
-                        if (blueState != null) {
-                            //int i = blueState.length() - 1;
-                            blueState = blueState.substring(0, 6);
-
-                            if (blueState.equals(STATE)) {
-                                Message msg = Message.obtain();
-                                ledChangeHandler.sendMessage(msg);
-                                break;     // 블루투스와 어플의 led 상태가 같으면 무한루프 종료
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-
-    private void setLed(boolean state) {
-        if (state) {
-            //LED켜짐
-            ledImage.setImageResource(R.drawable.motor_r_min);
-        } else {
-            //LED꺼짐
-            ledImage.setImageResource(R.drawable.motor_r_max);
-        }
-    }
-
-    private void setLedGreen(boolean state) {
-        if(state) {
-            // LED ON
-            ledImage_green.setImageResource(R.drawable.motor_g_min);
-        } else {
-            // LED OFF
-            ledImage_green.setImageResource(R.drawable.motor_g_max);
-        }
-    }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -326,6 +259,10 @@ public class DeviceControlActivity extends Activity{
         mTimer.scheduleAtFixedRate(mTask, 500, 50);
 
 
+        /**
+         *  LED 깜빡임을 의한 쓰레드
+         *  Blink 스위치가 ON 되었을때만 실행
+         */
         blinkThread = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -334,8 +271,8 @@ public class DeviceControlActivity extends Activity{
                         if (LEDSTATE_BLINK.equals("3A")) {
                             try {
                                 //mDataBlink = "ON";
-                                Message msg = Message.obtain();
-                                blinkHandler.sendMessage(msg);
+                                Message msg = Message.obtain(); // 쓰레드 내에서는 UI 변경이 안되기 때문에
+                                blinkHandler.sendMessage(msg);  // 핸들러를 호출하여 진행
 
                                 // 0.5 초 딜레이
                                 try {
@@ -344,7 +281,7 @@ public class DeviceControlActivity extends Activity{
                                     e.printStackTrace();
                                 }
                             } catch (Exception e) {
-                                showMessage(e.getMessage());
+                                e.printStackTrace();
                             }
                         }
                     }
@@ -409,6 +346,10 @@ public class DeviceControlActivity extends Activity{
         return super.onOptionsItemSelected(item);
     }
 
+    /**
+     *  연결 상태 텍스트 필드 업데이트
+     * @param resourceId strings.xml에 적혀있는 상태 ID
+     */
     private void updateConnectionState(final int resourceId) {
         runOnUiThread(new Runnable() {
             @Override
@@ -417,7 +358,6 @@ public class DeviceControlActivity extends Activity{
             }
         });
     }
-
 
     private static IntentFilter makeGattUpdateIntentFilter() {
         final IntentFilter intentFilter = new IntentFilter();
@@ -428,12 +368,99 @@ public class DeviceControlActivity extends Activity{
         return intentFilter;
     }
 
-    // GREEN LED 깜빡임
+    /**
+     *  STATE 초기화 함수
+     */
+    public void setSTATE() {
+        if(LEDSTATE_RED != null && LEDSTATE_GREEN != null && LEDSTATE_BLINK != null){
+            STATE = LEDSTATE_RED + LEDSTATE_GREEN + LEDSTATE_BLINK;
+        }
+        mDataFldUpdate();   //텍스트 필드 내용을 STATE와 같도록 업데이트
+    }
+
+    /**
+     *  스위치 상태변경시 호출된는 이벤트
+     *  블루투스로 변경된 상태를 송신한 후, 수신되는 데이터가 송신한 데이터와 같아질 때까지 반복
+     *  송수신 데이터가 같으면 이벤트 종료
+     * @param state 송신할 데이터
+     */
+    private void sendEvent(String state) {
+        List<BluetoothGattService> gattServices = mBluetoothLeService.getSupportedGattServices();
+        if (gattServices == null) return;
+        BluetoothGattService blueService = null;
+        if (mBluetoothLeService != null) {
+            mGatt = mBluetoothLeService.getGattServise();
+            blueService = mGatt.getService(UUID_BLUEINNO_PROFILE_SERVICE_UUID);
+        }
+
+        for (BluetoothGattService gattService : gattServices) {
+            if ((gattService.getUuid().toString()).equals(SampleGattAttributes.UUID_BLUEINNO_PROFILE_SERVICE_UUID)) {
+                BluetoothGattCharacteristic sendCharacteristic = gattService.getCharacteristic(UUID_BLUEINNO_PROFILE_SEND_UUID);
+                BluetoothGattCharacteristic readCharacteristic = gattService.getCharacteristic(UUID_BLUEINNO_PROFILE_RECEIVE_UUID);
+
+                if (sendCharacteristic != null && readCharacteristic != null) {
+
+                    while (true) {
+                        sendCharacteristic.setValue(state);                                    //  데이터 보내는 부분
+                        mBluetoothLeService.writeRemoteCharacteristic(sendCharacteristic);
+
+                        // 보내는 데이터와 다시 받는 데이터가 같은지 확인하기 위해서 데이터 받는 부분
+                        String blueState = null;
+                        mGatt.readCharacteristic(readCharacteristic);
+                        if (blueService.getCharacteristic(UUID_BLUEINNO_PROFILE_RECEIVE_UUID).getValue() != null) {
+                            blueState = new String(blueService.getCharacteristic(UUID_BLUEINNO_PROFILE_RECEIVE_UUID).getValue());
+                        }
+                        if (blueState != null) {
+                            //int i = blueState.length() - 1;
+                            blueState = blueState.substring(0, 6);
+
+                            if (blueState.equals(STATE)) {
+                                Message msg = Message.obtain();
+                                ledChangeHandler.sendMessage(msg);
+                                break;     // 블루투스와 어플의 led 상태가 같으면 무한루프 종료
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     *  RED LED 이미지 변경
+     * @param state true : ON, false : OFF
+     */
+    private void setLed(boolean state) {
+        if (state) {
+            //LED켜짐
+            ledImage.setImageResource(R.drawable.motor_r_min);
+        } else {
+            //LED꺼짐
+            ledImage.setImageResource(R.drawable.motor_r_max);
+        }
+    }
+
+    /**
+     *  GREEN LED 이미지 변경
+     * @param state true : ON, false : OFF
+     */
+    private void setLedGreen(boolean state) {
+        if(state) {
+            // LED ON
+            ledImage_green.setImageResource(R.drawable.motor_g_min);
+        } else {
+            // LED OFF
+            ledImage_green.setImageResource(R.drawable.motor_g_max);
+        }
+    }
+
+    // GREEN LED Blink 쓰레드에서 호출되는 핸들러, 깜빡임 이미지 변경
     Handler blinkHandler = new Handler() {
         public void handleMessage(Message msg) {
             if (!buttonEvent) {
                 mDataFldUpdate();
 
+                // blinkState는 정수형이며, 초기값은 1, 홀수일 때 ON, 짝수일 때 OFF, 이미지 변경 후 +1
                 if(blinkState%2 == 1) {
                     ledImage_green.setImageResource(R.drawable.motor_g_min);
                     blinkState++;
@@ -467,6 +494,7 @@ public class DeviceControlActivity extends Activity{
                     mSwitch_green.setChecked(false);
                 }
 
+                // 스위치 상태만 변경
                 if(mDataBlink.equals("ON")) {
                     mSwitch_blink.setChecked(true);
                 } else {
@@ -501,22 +529,4 @@ public class DeviceControlActivity extends Activity{
             mDataField.setText(mDataRed + " " + mDataGreen + " " + mDataBlink);
         }
     }
-
-    // 메시지를 화면에 표시
-    public void showMessage(String strMsg) {
-        // 메시지 텍스트를 핸들러에 전달
-        Message msg = Message.obtain(mHandler, 0, strMsg);
-        mHandler.sendMessage(msg);
-        Log.d("STATE", strMsg);
-    }
-
-    // 메시지 화면 출력을 위한 핸들러
-    Handler mHandler = new Handler() {
-        public void handleMessage(Message msg) {
-            if (msg.what == 0) {
-                String strMsg = (String) msg.obj;
-                Toast.makeText(getApplicationContext(), strMsg, Toast.LENGTH_SHORT);
-            }
-        }
-    };
 }

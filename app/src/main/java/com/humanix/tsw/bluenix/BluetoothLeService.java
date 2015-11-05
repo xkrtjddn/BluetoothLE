@@ -303,8 +303,8 @@ public class BluetoothLeService extends Service implements BluetoothAdapter.LeSc
         mBluetoothGatt.setCharacteristicNotification(characteristic, enabled);
     }
 
-    /**함
-     * 연결된 장치에서 지원 GATT 서비스의 목록을 검색. 이 후 호출이 성공적으로 완료되어야
+    /**
+     * 연결된 장치에서 지원 GATT 서비스의 목록을 검색. 이 후 호출이 성공적으로 완료되어야함
      *
      * @return A {@code List} of supported services.
      */

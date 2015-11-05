@@ -38,7 +38,7 @@ public class DeviceScanActivity extends ListActivity{
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getActionBar().setTitle(R.string.title_devices);
+        getActionBar().setTitle("Bluenix - " + R.string.title_devices);
         mHandler = new Handler();
 
 

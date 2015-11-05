@@ -250,7 +250,7 @@ public class DeviceControlActivity extends Activity{
         mSwitch_blink = (Switch) findViewById(R.id.led_switch_blink);
         mSwitch_blink.setOnCheckedChangeListener(ledSwitchListener);
 
-        getActionBar().setTitle(mDeviceName);
+        getActionBar().setTitle("Bluenix - "+mDeviceName);
         getActionBar().setDisplayHomeAsUpEnabled(true);
         Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
         bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);

@@ -22,8 +22,6 @@ import android.widget.ImageView;
 import android.widget.Switch;
 import android.widget.TextView;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
@@ -52,15 +50,13 @@ public class DeviceControlActivity extends Activity{
     private String mDeviceName;
     private String mDeviceAddress;
     private BluetoothLeService mBluetoothLeService;
-    private ArrayList<ArrayList<BluetoothGattCharacteristic>> mGattCharacteristics =
-            new ArrayList<ArrayList<BluetoothGattCharacteristic>>();
     private boolean mConnected = false;
-    private BluetoothGattCharacteristic mNotifyCharacteristic;
 
     private BluetoothGatt mGatt;
+    private BluetoothGattService blueService;
+    private BluetoothGattCharacteristic sendCharacteristic;
+    private BluetoothGattCharacteristic readCharacteristic;
 
-    private final String LIST_NAME = "NAME";
-    private final String LIST_UUID = "UUID";
     private String STATE = null;
     private String LEDSTATE_RED = "1B";
     private String LEDSTATE_GREEN = "2B";
@@ -123,7 +119,7 @@ public class DeviceControlActivity extends Activity{
 
             } else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {   // 데이터 송수신 가능 상태
                 try{
-                    if(!blinkThread.isAlive()){
+                    if(!blinkThread.isAlive()){         // 깜빡임 쓰레드가 살아있지 않으면 쓰레드 시작
                         blinkThread.start();
                     }
                 }catch (Exception e){
@@ -153,6 +149,7 @@ public class DeviceControlActivity extends Activity{
             if(mSwitch_green.isChecked()) {
                 LEDSTATE_GREEN = "2A";
                 LEDSTATE_BLINK = "3B";  // 스위치를 켜면 Blink는 OFF
+                mSwitch_blink.setChecked(false);
                 setSTATE();
             }else{
                 LEDSTATE_GREEN = "2B";
@@ -163,6 +160,7 @@ public class DeviceControlActivity extends Activity{
             if(mSwitch_blink.isChecked()) {
                 LEDSTATE_BLINK = "3A";
                 LEDSTATE_GREEN = "2B";  // Blink를 켜면 스위치는 OFF
+                mSwitch_green.setChecked(false);
                 setSTATE();
             }else{
                 LEDSTATE_BLINK = "3B";
@@ -250,13 +248,13 @@ public class DeviceControlActivity extends Activity{
         mSwitch_blink = (Switch) findViewById(R.id.led_switch_blink);
         mSwitch_blink.setOnCheckedChangeListener(ledSwitchListener);
 
-        getActionBar().setTitle("Bluenix - "+mDeviceName);
+        getActionBar().setTitle("Bluenix - "+ mDeviceName);
         getActionBar().setDisplayHomeAsUpEnabled(true);
         Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
         bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
 
         mTimer = new Timer(true);
-        mTimer.scheduleAtFixedRate(mTask, 500, 50);
+        mTimer.scheduleAtFixedRate(mTask, 500, 10);
 
 
         /**
@@ -385,45 +383,43 @@ public class DeviceControlActivity extends Activity{
      * @param state 송신할 데이터
      */
     private void sendEvent(String state) {
-        List<BluetoothGattService> gattServices = mBluetoothLeService.getSupportedGattServices();
-        if (gattServices == null) return;
-        BluetoothGattService blueService = null;
+        blueService = null;
         if (mBluetoothLeService != null) {
             mGatt = mBluetoothLeService.getGattServise();
             blueService = mGatt.getService(UUID_BLUEINNO_PROFILE_SERVICE_UUID);
         }
 
-        for (BluetoothGattService gattService : gattServices) {
-            if ((gattService.getUuid().toString()).equals(SampleGattAttributes.UUID_BLUEINNO_PROFILE_SERVICE_UUID)) {
-                BluetoothGattCharacteristic sendCharacteristic = gattService.getCharacteristic(UUID_BLUEINNO_PROFILE_SEND_UUID);
-                BluetoothGattCharacteristic readCharacteristic = gattService.getCharacteristic(UUID_BLUEINNO_PROFILE_RECEIVE_UUID);
+        if ((blueService.getUuid().toString()).equals(SampleGattAttributes.UUID_BLUEINNO_PROFILE_SERVICE_UUID)) {
+            sendCharacteristic = blueService.getCharacteristic(UUID_BLUEINNO_PROFILE_SEND_UUID);
+            readCharacteristic = blueService.getCharacteristic(UUID_BLUEINNO_PROFILE_RECEIVE_UUID);
 
-                if (sendCharacteristic != null && readCharacteristic != null) {
+            if (sendCharacteristic != null && readCharacteristic != null) {
 
-                    while (true) {
-                        sendCharacteristic.setValue(state);                                    //  데이터 보내는 부분
-                        mBluetoothLeService.writeRemoteCharacteristic(sendCharacteristic);
+                while (true) {
+                    sendCharacteristic.setValue(state);                                    //  데이터 보내는 부분
+                    mBluetoothLeService.writeRemoteCharacteristic(sendCharacteristic);
 
-                        // 보내는 데이터와 다시 받는 데이터가 같은지 확인하기 위해서 데이터 받는 부분
-                        String blueState = null;
-                        mGatt.readCharacteristic(readCharacteristic);
-                        if (blueService.getCharacteristic(UUID_BLUEINNO_PROFILE_RECEIVE_UUID).getValue() != null) {
-                            blueState = new String(blueService.getCharacteristic(UUID_BLUEINNO_PROFILE_RECEIVE_UUID).getValue());
-                        }
-                        if (blueState != null) {
-                            //int i = blueState.length() - 1;
-                            blueState = blueState.substring(0, 6);
+                    // 보내는 데이터와 다시 받는 데이터가 같은지 확인하기 위해서 데이터 받는 부분
+                    byte[] blueState = new byte[0];
+                    mGatt.readCharacteristic(readCharacteristic);
+                    if (blueService.getCharacteristic(UUID_BLUEINNO_PROFILE_RECEIVE_UUID).getValue() != null) {
+                        blueState = blueService.getCharacteristic(UUID_BLUEINNO_PROFILE_RECEIVE_UUID).getValue();
+                    }
 
-                            if (blueState.equals(STATE)) {
-                                Message msg = Message.obtain();
-                                ledChangeHandler.sendMessage(msg);
-                                break;     // 블루투스와 어플의 led 상태가 같으면 무한루프 종료
-                            }
+                    if (blueState.length != 0) {
+                        String recvState = new String(blueState);
+                        recvState = recvState.substring(0, 6);
+
+                        if (recvState.equals(state)) {
+                            Message msg = Message.obtain();
+                            ledChangeHandler.sendMessage(msg);
+                            break;     // 블루투스와 어플의 led 상태가 같으면 무한루프 종료
                         }
                     }
                 }
             }
         }
+
     }
 
     /**

@@ -28,11 +28,6 @@ public class BluetoothLeService extends Service implements BluetoothAdapter.LeSc
     private BluetoothAdapter mBluetoothAdapter;
     private String mBluetoothDeviceAddress;
     private BluetoothGatt mBluetoothGatt;
-    private int mConnectionState = STATE_DISCONNECTED;
-
-    private static final int STATE_DISCONNECTED = 0;
-    private static final int STATE_CONNECTING = 1;
-    private static final int STATE_CONNECTED = 2;
 
     public final static String ACTION_GATT_CONNECTED =
             "com.example.bluetooth.le.ACTION_GATT_CONNECTED";
@@ -47,10 +42,6 @@ public class BluetoothLeService extends Service implements BluetoothAdapter.LeSc
 
     public final static UUID UUID_BLUEINNO_PROFILE_SERVICE_UUID =
             UUID.fromString(SampleGattAttributes.UUID_BLUEINNO_PROFILE_SERVICE_UUID);
-    public final static UUID UUID_BLUEINNO_PROFILE_SEND_UUID =
-            UUID.fromString(SampleGattAttributes.UUID_BLUEINNO_PROFILE_SEND_UUID);
-    public final static UUID UUID_BLUEINNO_PROFILE_RECEIVE_UUID =
-            UUID.fromString(SampleGattAttributes.UUID_BLUEINNO_PROFILE_RECEIVE_UUID);
 
     // GATT 이벤트에 대한 콜백 메서드 구현
     // 연결 변화와 서비스 발견 이벤트 등
@@ -62,7 +53,7 @@ public class BluetoothLeService extends Service implements BluetoothAdapter.LeSc
             //블루투스가 연결 되어있다면
             if(newState == BluetoothProfile.STATE_CONNECTED) {
                 intentAction = ACTION_GATT_CONNECTED;
-                mConnectionState = STATE_CONNECTED;
+                //mConnectionState = STATE_CONNECTED;
 
                 broadcastUpdate(intentAction);
                 Log.i(TAG, "Connected to GATT server.");
@@ -73,7 +64,7 @@ public class BluetoothLeService extends Service implements BluetoothAdapter.LeSc
             //블루투스가 연결 끊기면
             else if(newState == BluetoothProfile.STATE_DISCONNECTED){
                 intentAction = ACTION_GATT_DISCONNECTED;
-                mConnectionState = STATE_DISCONNECTED;
+                //mConnectionState = STATE_DISCONNECTED;
                 Log.i(TAG, "Disconnected from GATT server.");
                 broadcastUpdate(intentAction);
             }
@@ -132,7 +123,7 @@ public class BluetoothLeService extends Service implements BluetoothAdapter.LeSc
             final int data = characteristic.getIntValue(format, 1);
             Log.d(TAG, String.format("Received data: %d", data));
             intent.putExtra(EXTRA_DATA, String.valueOf(data));
-        }else{
+        } else {
             //서비스 외에 모든 프로파일 데이터를 HEX값으로 읽어들임
             final byte[] data = characteristic.getValue();
             if (data != null && data.length > 0) {
@@ -225,7 +216,7 @@ public class BluetoothLeService extends Service implements BluetoothAdapter.LeSc
             // 연결을 위해 기존 mBluetoothGatt 을 사용
             Log.d(TAG, "Trying to use an existing mBluetoothGatt for connection.");
             if(mBluetoothGatt.connect()){
-                mConnectionState = STATE_CONNECTING;
+                //mConnectionState = STATE_CONNECTING;
                 return true;
             } else {
                 return false;
@@ -242,7 +233,7 @@ public class BluetoothLeService extends Service implements BluetoothAdapter.LeSc
         mBluetoothGatt = device.connectGatt(this, false, mGattCallback);
         Log.d(TAG, "Trying to create a new connection.");
         mBluetoothDeviceAddress = address;
-        mConnectionState = STATE_CONNECTING;
+        //mConnectionState = STATE_CONNECTING;
         return true;
     }
 
